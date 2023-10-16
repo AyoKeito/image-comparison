@@ -2,12 +2,12 @@
 
 This script is mostly written by OpenAI ChatGPT. It works, at least on my PC.  
 
-This script is displaying random images from the target folder.
+This script is displaying random images from the target folder with minimal UI.
 You're able to ```discard``` images you don't want.
 
 Discarded images are **moved** to ```discarded``` subfolder.
 
-To discard image, press:
+To discard an image, press:
 
 ```A``` or ```Left Arrow``` to discard image displayed on the left.
 
