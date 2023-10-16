@@ -22,7 +22,7 @@ The loop will continue, until only 2 images are left in the target folder, or ap
 All file operations are logged into the terminal.
 
 ## Main script is batch_sorter.py:
-![batch_sorter.py](batch_sorter.jpg)
+![batch_sorter.py](.github/batch_sorter.jpg)
 ```
 usage: batch_sorter.py FOLDER_PATH
 ```
