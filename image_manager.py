@@ -144,7 +144,6 @@ class ImageManager:
                 try:
                     image_files = self.file_handler.get_image_files(folder_path)
                     if image_files:
-                        self.logger.info(f"Using folder: {folder_path}")
                         return folder_path
                     else:
                         self.logger.warning(f"Folder contains no images: {folder_path}")
@@ -177,7 +176,6 @@ class ImageManager:
             # Shuffle for randomness
             random.shuffle(self.available_images)
             
-            self.logger.debug(f"Refreshed: {len(self.available_images)} available images")
             self._notify_images_updated()
             
         except Exception as e:
@@ -221,7 +219,6 @@ class ImageManager:
             self.available_images.remove(image2)
             
             self.current_pair = ImagePair(image1, image2)
-            self.logger.debug(f"Selected pair: {image1.name}, {image2.name}")
             
             return self.current_pair
             
@@ -257,7 +254,6 @@ class ImageManager:
         
         if to_discard:
             self.discarded_count += len(to_discard)
-            self.logger.debug(f"Marked for discard: {[img.name for img in to_discard]}")
             self._notify_images_updated()
         
         return to_discard

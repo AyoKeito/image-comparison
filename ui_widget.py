@@ -1,12 +1,13 @@
 """Refactored UI widget for Image Comparison application."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox, 
                            QVBoxLayout, QWidget, QFileDialog)
+from PIL import Image
 
 from commands import CommandManager, DiscardImageCommand, DiscardMultipleImagesCommand
 from config import AppConfig
@@ -38,6 +39,7 @@ class ImageComparisonWidget(QWidget):
         
         # UI Components
         self.image_labels = [QLabel(self) for _ in range(2)]
+        self.info_labels = [QLabel(self) for _ in range(2)]
         self.current_pair: Optional[ImagePair] = None
         
         # Initialize UI
@@ -55,15 +57,27 @@ class ImageComparisonWidget(QWidget):
             label.setAlignment(Qt.AlignCenter)
             label.setMinimumSize(400, 300)
         
+        # Configure info labels
+        for label in self.info_labels:
+            label.setAlignment(Qt.AlignCenter)
+            label.setWordWrap(True)
+            label.setMaximumHeight(60)
+        
         # Create layouts
         main_layout = QVBoxLayout()
         image_layout = QHBoxLayout()
+        info_layout = QHBoxLayout()
         
         # Add image labels to horizontal layout
         for label in self.image_labels:
             image_layout.addWidget(label, 1)
         
+        # Add info labels to horizontal layout
+        for label in self.info_labels:
+            info_layout.addWidget(label, 1)
+        
         main_layout.addLayout(image_layout)
+        main_layout.addLayout(info_layout)
         self.setLayout(main_layout)
         
         # Set window properties
@@ -188,11 +202,9 @@ class ImageComparisonWidget(QWidget):
     def _handle_undo(self):
         """Handle undo action."""
         if self.command_manager.undo_last_command():
-            self.logger.info("Undo successful")
             # Refresh the current view
             self._load_next_pair()
         else:
-            self.logger.info("Nothing to undo")
             self._show_info_dialog("Nothing to undo")
     
     def _load_next_pair(self):
@@ -220,11 +232,24 @@ class ImageComparisonWidget(QWidget):
         available_width = (self.width() - 2 * self.config.padding) // 2
         available_height = self.height() - 2 * self.config.padding
         
-        # Load and display each image
+        # Load and display each image, comparing resolutions
         images = [self.current_pair.image1_path, self.current_pair.image2_path]
+        dimensions = []
+        
+        # Get dimensions for both images first
+        for image_path in images:
+            dimensions.append(self._get_image_dimensions(image_path))
+        
+        # Calculate pixel counts and determine which is higher
+        pixel_counts = [w * h for w, h in dimensions]
+        higher_res_index = 0 if pixel_counts[0] > pixel_counts[1] else 1 if pixel_counts[1] > pixel_counts[0] else -1
+        
+        # Display images and info with highlighting
         for i, image_path in enumerate(images):
             self._update_single_image_display(image_path, self.image_labels[i], 
                                             available_width, available_height)
+            is_higher_res = (i == higher_res_index and pixel_counts[0] != pixel_counts[1])
+            self._update_image_info(image_path, self.info_labels[i], is_higher_res)
     
     def _update_single_image_display(self, image_path: Path, label: QLabel, 
                                    max_width: int, max_height: int):
@@ -240,7 +265,34 @@ class ImageComparisonWidget(QWidget):
         except ImageLoadError as e:
             self.logger.error(f"Failed to display image {image_path}: {e}")
             # Show error placeholder
-            label.setText(f"Error loading\\n{image_path.name}")
+            label.setText(f"Error loading\n{image_path.name}")
+    
+    def _get_image_dimensions(self, image_path: Path) -> Tuple[int, int]:
+        """Get the dimensions of an image file."""
+        try:
+            with Image.open(image_path) as img:
+                return img.size
+        except Exception as e:
+            self.logger.error(f"Failed to get dimensions for {image_path}: {e}")
+            return (0, 0)
+    
+    def _update_image_info(self, image_path: Path, info_label: QLabel, is_higher_res: bool = False):
+        """Update the info display for a single image."""
+        try:
+            width, height = self._get_image_dimensions(image_path)
+            info_text = f"{image_path.name}: {width} × {height}"
+            info_label.setText(info_text)
+            
+            # Apply green highlighting for higher resolution
+            if is_higher_res:
+                info_label.setStyleSheet("color: #00ff00; font-weight: bold;")
+            else:
+                info_label.setStyleSheet(f"color: {self.config.text_color};")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to update info for {image_path}: {e}")
+            info_label.setText(f"{image_path.name}: Dimensions unknown")
+            info_label.setStyleSheet(f"color: {self.config.text_color};")
     
     def _handle_completion(self):
         """Handle completion of the comparison process."""
@@ -249,7 +301,7 @@ class ImageComparisonWidget(QWidget):
         if len(remaining_images) == 0:
             self._show_completion_dialog("All images processed!")
         elif len(remaining_images) == 1:
-            self._show_completion_dialog(f"One image remaining:\\n{remaining_images[0].name}")
+            self._show_completion_dialog(f"One image remaining: {remaining_images[0].name}")
         else:
             # This shouldn't happen, but handle gracefully
             self._show_completion_dialog(f"{len(remaining_images)} images remaining")
@@ -258,7 +310,7 @@ class ImageComparisonWidget(QWidget):
     
     def _show_error_dialog(self, message: str):
         """Show an error dialog to the user."""
-        QMessageBox.critical(self, "Error", f"{message}\\n\\nCheck error.log for details.")
+        QMessageBox.critical(self, "Error", f"{message}\n\nCheck error.log for details.")
     
     def _show_info_dialog(self, message: str):
         """Show an info dialog to the user."""
@@ -288,7 +340,7 @@ class ImageComparisonWidget(QWidget):
         if len(remaining_images) == 2:
             # Special case: show final two images
             self._show_info_dialog(
-                f"Final two images remaining:\\n{remaining_images[0].name}\\n{remaining_images[1].name}"
+                f"Final two images remaining:\n{remaining_images[0].name}\n{remaining_images[1].name}"
             )
 
 

@@ -17,9 +17,9 @@ class AppLogger:
         # Clear any existing handlers
         self.logger.handlers.clear()
         
-        # File handler for detailed logging
+        # File handler for errors and critical issues only
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging.ERROR)
         
         # Console handler for user feedback
         console_handler = logging.StreamHandler(sys.stdout)

@@ -54,7 +54,6 @@ class DiscardImageCommand(Command):
             self.image_processor.clear_cache_entry(self.image_path)
             
             self.executed = True
-            self.logger.info(f"Discarded image: {self.image_path.name}")
             
         except FileOperationError as e:
             self.logger.error(f"Failed to discard image {self.image_path}: {e}")
@@ -78,7 +77,6 @@ class DiscardImageCommand(Command):
             self.original_source_path = None
             self.executed = False
             
-            self.logger.info(f"Restored image: {self.image_path.name}")
             
         except FileOperationError as e:
             self.logger.error(f"Failed to restore image {self.image_path}: {e}")
@@ -122,7 +120,6 @@ class DiscardMultipleImagesCommand(Command):
                 # Continue with other images
                 continue
         
-        self.logger.info(f"Discarded {len(self.discard_commands)} images")
     
     def undo(self):
         """Undo all discard commands in reverse order."""
@@ -144,7 +141,6 @@ class DiscardMultipleImagesCommand(Command):
                 continue
         
         self.discard_commands.clear()
-        self.logger.info(f"Restored {restored_count} images")
     
     def can_undo(self) -> bool:
         """Check if at least one command can be undone."""
@@ -171,7 +167,6 @@ class CommandManager:
             while len(self.history) > self.max_history_size:
                 self.history.pop(0)
             
-            self.logger.debug(f"Executed command: {type(command).__name__}")
             
         except Exception as e:
             self.logger.error(f"Failed to execute command {type(command).__name__}: {e}")
@@ -185,7 +180,6 @@ class CommandManager:
             True if undo was successful, False if no command to undo
         """
         if not self.history:
-            self.logger.debug("No commands to undo")
             return False
         
         # Find the last command that can be undone
@@ -195,7 +189,6 @@ class CommandManager:
                 try:
                     command.undo()
                     self.history.remove(command)
-                    self.logger.debug(f"Undid command: {type(command).__name__}")
                     return True
                 except Exception as e:
                     self.logger.error(f"Failed to undo command {type(command).__name__}: {e}")
@@ -203,14 +196,12 @@ class CommandManager:
                     self.history.remove(command)
                     return False
         
-        self.logger.debug("No undoable commands found")
         return False
     
     def clear_history(self):
         """Clear the command history."""
         history_size = len(self.history)
         self.history.clear()
-        self.logger.debug(f"Cleared command history of {history_size} commands")
     
     def get_history_size(self) -> int:
         """Get the current history size."""

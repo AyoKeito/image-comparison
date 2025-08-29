@@ -34,7 +34,6 @@ class Application:
     
     def create_components(self):
         """Create and wire together all application components."""
-        self.logger.info("Initializing application components")
         
         # Create Qt application
         self.qt_app = QApplication(sys.argv)
@@ -60,7 +59,6 @@ class Application:
             self.file_handler, self.command_manager, self.config
         )
         
-        self.logger.info("Application components initialized successfully")
     
     def _get_validated_folder(self) -> Path:
         """Get and validate the folder path, with user interaction if needed."""
@@ -96,7 +94,6 @@ class Application:
             
             if not folder_path:
                 # User cancelled
-                self.logger.info("User cancelled folder selection")
                 sys.exit(0)
             
             try:
@@ -104,7 +101,6 @@ class Application:
                 if folder_path.exists() and folder_path.is_dir():
                     image_files = self.file_handler.get_image_files(folder_path)
                     if image_files:
-                        self.logger.info(f"Selected valid folder: {folder_path}")
                         return folder_path
                     else:
                         self._show_warning("No supported images found in the selected folder.")
@@ -122,7 +118,7 @@ class Application:
     
     def _show_error(self, message: str):
         """Show error message to user."""
-        QMessageBox.critical(None, "Error", f"{message}\\n\\nCheck error.log for details.")
+        QMessageBox.critical(None, "Error", f"{message}\n\nCheck error.log for details.")
     
     def _show_warning(self, message: str):
         """Show warning message to user.""" 
@@ -143,7 +139,6 @@ class Application:
             else:
                 self.ui_widget.show()
             
-            self.logger.info("Application started successfully")
             
             # Print instructions to console
             self._print_instructions()
@@ -171,7 +166,7 @@ class Application:
     
     def _print_instructions(self):
         """Print usage instructions to console."""
-        print("\\n" + "="*50)
+        print("\n" + "="*50)
         print("Image Comparison - Instructions")
         print("="*50)
         print("W or UP ARROW    : Keep both images")
@@ -182,25 +177,20 @@ class Application:
         print("="*50)
         print("Discarded images are moved to 'discarded' subfolder")
         print("All operations are logged to 'error.log'")
-        print("="*50 + "\\n")
+        print("="*50 + "\n")
     
     def _cleanup(self):
         """Clean up application resources."""
         try:
             if self.image_processor:
                 cache_info = self.image_processor.get_cache_info()
-                self.logger.info(f"Final cache statistics: {cache_info}")
                 self.image_processor.clear_cache()
             
             if self.command_manager:
-                history_size = self.command_manager.get_history_size()
-                self.logger.info(f"Final command history size: {history_size}")
                 self.command_manager.clear_history()
             
             if self.config:
                 self.config.save_to_file()  # Save any config changes
-            
-            self.logger.info("Application cleanup completed")
             
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}")

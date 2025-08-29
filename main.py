@@ -23,15 +23,25 @@ def main():
     try:
         app = Application.create_from_args(folder_path)
         exit_code = app.run()
-        print(f"\\nApplication exited with code: {exit_code}")
+        
+        # Show completion statistics if application ran successfully
+        if exit_code == 0:
+            stats = app.get_statistics()
+            if stats.get("app_initialized", False):
+                remaining = stats.get("total_images", 0)
+                discarded = stats.get("discarded_count", 0)
+                print(f"\nComparison completed! Images remaining: {remaining}, discarded: {discarded}")
+            else:
+                print("\nApplication completed successfully")
+        
         sys.exit(exit_code)
         
     except KeyboardInterrupt:
-        print("\\nApplication interrupted by user")
+        print("\nApplication interrupted by user")
         sys.exit(130)  # Standard exit code for Ctrl+C
         
     except Exception as e:
-        print(f"\\nCritical error: {e}")
+        print(f"\nCritical error: {e}")
         print("Check error.log for details")
         sys.exit(1)
 
