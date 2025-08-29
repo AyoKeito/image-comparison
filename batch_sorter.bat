@@ -14,6 +14,7 @@ echo Running Python script...
 call .\venv\Scripts\activate
 .\venv\Scripts\python.exe batch_sorter.py
 
+pause
 echo Exiting...
 deactivate
 exit
