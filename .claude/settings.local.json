@@ -10,7 +10,9 @@
       "Bash(./venv/Scripts/python.exe -c \"from PyQt5.QtWidgets import QApplication; print(''PyQt5 available'')\")",
       "Bash(./venv/Scripts/python.exe -c \"import ui_widget, application; print(''All modules imported successfully'')\")",
       "Bash(./venv/Scripts/python.exe -c \"import ui_widget, application; print(''All modules imported successfully'')\")",
-      "Bash(./venv/Scripts/python.exe -c \"from main import main; print(''Main function imported successfully'')\")"
+      "Bash(./venv/Scripts/python.exe -c \"from main import main; print(''Main function imported successfully'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"import image_processor; print(''Image processor import successful'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"import ui_widget, application; print(''All UI modules imported successfully'')\")"
     ],
     "deny": [],
     "ask": []

@@ -83,15 +83,15 @@ class ImageProcessor:
     
     def _resize_image(self, image: Image.Image, max_width: int, max_height: int) -> Image.Image:
         """
-        Resize an image while preserving aspect ratio.
+        Resize an image to maximize space usage while preserving aspect ratio.
         
         Args:
             image: PIL Image to resize
-            max_width: Maximum width
-            max_height: Maximum height
+            max_width: Maximum width (target width for the available space)
+            max_height: Maximum height (target height for the available space)
             
         Returns:
-            Resized PIL Image
+            Resized PIL Image that fills the available space
         """
         image_width, image_height = image.size
         
@@ -105,17 +105,18 @@ class ImageProcessor:
             self.logger.warning(f"Invalid max dimensions: {max_width}x{max_height}")
             return image
         
-        # Calculate scale factor to maintain aspect ratio
+        # Calculate scale factor to maintain aspect ratio and maximize space usage
         scale_factor = min(max_width / image_width, max_height / image_height)
         
-        # Only resize if image is larger than max dimensions
-        if scale_factor >= 1.0:
-            return image
-        
+        # Always resize to fill the available space (both upscale and downscale)
         new_width = max(1, int(image_width * scale_factor))
         new_height = max(1, int(image_height * scale_factor))
         
-        return image.resize((new_width, new_height), Image.LANCZOS)
+        # Only resize if the new dimensions are different from original
+        if new_width != image_width or new_height != image_height:
+            return image.resize((new_width, new_height), Image.LANCZOS)
+        
+        return image
     
     def _pil_to_qimage(self, pil_image: Image.Image) -> QImage:
         """Convert a PIL image to QImage."""
