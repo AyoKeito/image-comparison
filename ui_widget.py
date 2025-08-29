@@ -17,7 +17,7 @@ from image_processor import ImageProcessor
 from logger import logger
 
 
-class ImageComparisonWidget(QWidget, ImageManagerObserver):
+class ImageComparisonWidget(QWidget):
     """Main UI widget for image comparison with clean separation of concerns."""
     
     def __init__(self, image_manager: ImageManager, image_processor: ImageProcessor,
@@ -157,7 +157,29 @@ class ImageComparisonWidget(QWidget, ImageManagerObserver):
             discard_left=discard_left,
             discard_right=discard_right,
             discard_both=(action == 'discard_both')
-        )\n        \n        if not to_discard:\n            return\n        \n        # Create and execute command\n        if len(to_discard) == 1:\n            command = DiscardImageCommand(\n                to_discard[0], self.image_manager.source_folder,\n                self.file_handler, self.image_processor\n            )\n        else:\n            command = DiscardMultipleImagesCommand(\n                to_discard, self.image_manager.source_folder,\n                self.file_handler, self.image_processor\n            )\n        \n        try:\n            self.command_manager.execute_command(command)\n            self._load_next_pair()\n        except FileOperationError as e:\n            self.logger.error(f"Failed to discard images: {e}")\n            self._show_error_dialog(f"Failed to discard images: {e}")
+        )
+        
+        if not to_discard:
+            return
+        
+        # Create and execute command
+        if len(to_discard) == 1:
+            command = DiscardImageCommand(
+                to_discard[0], self.image_manager.source_folder,
+                self.file_handler, self.image_processor
+            )
+        else:
+            command = DiscardMultipleImagesCommand(
+                to_discard, self.image_manager.source_folder,
+                self.file_handler, self.image_processor
+            )
+        
+        try:
+            self.command_manager.execute_command(command)
+            self._load_next_pair()
+        except FileOperationError as e:
+            self.logger.error(f"Failed to discard images: {e}")
+            self._show_error_dialog(f"Failed to discard images: {e}")
     
     def _handle_keep_both(self):
         """Handle keep both images action."""

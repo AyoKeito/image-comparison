@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(.venvScriptspython.exe -c \"import sys; print(''Python path:'', sys.executable)\")",
+      "Bash(./venv/Scripts/python.exe -m py_compile:*)",
+      "Bash(./venv/Scripts/python.exe -c \"import config, exceptions, logger; print(''Core modules imported successfully'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"import file_operations, image_processor, commands; print(''Processing modules imported successfully'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"import image_manager; print(''Image manager imported successfully'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"from PyQt5.QtWidgets import QApplication; print(''PyQt5 available'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"import ui_widget, application; print(''All modules imported successfully'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"import ui_widget, application; print(''All modules imported successfully'')\")",
+      "Bash(./venv/Scripts/python.exe -c \"from main import main; print(''Main function imported successfully'')\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
