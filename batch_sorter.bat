@@ -12,8 +12,9 @@ if not exist .\venv\ (
 
 echo Running Python script...
 call .\venv\Scripts\activate
-.\venv\Scripts\python.exe batch_sorter.py
+.\venv\Scripts\python.exe main.py
 
+pause
 echo Exiting...
 deactivate
 exit
