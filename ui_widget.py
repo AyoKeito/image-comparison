@@ -189,7 +189,23 @@ class ImageComparisonWidget(QWidget):
             )
         
         try:
-            self.command_manager.execute_command(command)
+            result = self.command_manager.execute_command(command)
+
+            if result.succeeded_count == 0 and result.failed_count > 0:
+                error_details = "\n".join(result.errors)
+                self._show_error_dialog(
+                    f"Failed to discard images.\n{error_details}" if error_details else "Failed to discard images."
+                )
+                return
+
+            if result.succeeded_count > 0 and result.failed_count > 0:
+                error_details = "\n".join(result.errors)
+                self._show_warning_dialog(
+                    "Some images were discarded, but some failed:\n"
+                    f"Succeeded: {result.succeeded_count}, Failed: {result.failed_count}"
+                    + (f"\n\nDetails:\n{error_details}" if error_details else "")
+                )
+
             self._load_next_pair()
         except FileOperationError as e:
             self.logger.error(f"Failed to discard images: {e}")
@@ -315,6 +331,10 @@ class ImageComparisonWidget(QWidget):
     def _show_info_dialog(self, message: str):
         """Show an info dialog to the user."""
         QMessageBox.information(self, "Info", message)
+
+    def _show_warning_dialog(self, message: str):
+        """Show a warning dialog to the user."""
+        QMessageBox.warning(self, "Warning", message)
     
     def _show_completion_dialog(self, message: str):
         """Show a completion dialog to the user."""
