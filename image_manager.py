@@ -9,6 +9,7 @@ from typing import List, Optional, Protocol, Tuple
 from config import AppConfig
 from exceptions import FolderValidationError, InsufficientImagesError
 from file_operations import FileOperationHandler
+from folder_validation import validate_image_folder
 from logger import logger
 
 
@@ -136,29 +137,10 @@ class ImageManager:
     
     def _validate_and_set_folder(self, folder_path: Optional[Path]) -> Path:
         """Validate and set the source folder."""
-        attempts = 0
-        
-        while attempts < self.config.max_folder_validation_attempts:
-            if folder_path and folder_path.exists() and folder_path.is_dir():
-                # Check if folder contains images
-                try:
-                    image_files = self.file_handler.get_image_files(folder_path)
-                    if image_files:
-                        return folder_path
-                    else:
-                        self.logger.warning(f"Folder contains no images: {folder_path}")
-                except Exception as e:
-                    self.logger.error(f"Error accessing folder {folder_path}: {e}")
-            
-            # Folder is invalid, need to prompt user
-            # In CLI version, this would exit with error
-            # In GUI version, this would show folder selection dialog
-            attempts += 1
-            folder_path = None  # Force re-selection
-        
-        raise FolderValidationError(
-            f"Failed to validate folder after {self.config.max_folder_validation_attempts} attempts"
-        )
+        if folder_path is None:
+            raise FolderValidationError("Folder path is required")
+
+        return validate_image_folder(folder_path, self.file_handler)
     
     def refresh_available_images(self):
         """Refresh the list of available images from the source folder."""
