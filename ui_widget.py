@@ -1,13 +1,12 @@
 """Refactored UI widget for Image Comparison application."""
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QPainter, QPen, QPixmap
+from PyQt5.QtGui import QColor, QPainter, QPen
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox, 
                            QVBoxLayout, QWidget, QFileDialog)
-from PIL import Image
 
 from commands import CommandManager, DiscardImageCommand, DiscardMultipleImagesCommand
 from config import AppConfig
@@ -189,7 +188,23 @@ class ImageComparisonWidget(QWidget):
             )
         
         try:
-            self.command_manager.execute_command(command)
+            result = self.command_manager.execute_command(command)
+
+            if result.succeeded_count == 0 and result.failed_count > 0:
+                error_details = "\n".join(result.errors)
+                self._show_error_dialog(
+                    f"Failed to discard images.\n{error_details}" if error_details else "Failed to discard images."
+                )
+                return
+
+            if result.succeeded_count > 0 and result.failed_count > 0:
+                error_details = "\n".join(result.errors)
+                self._show_warning_dialog(
+                    "Some images were discarded, but some failed:\n"
+                    f"Succeeded: {result.succeeded_count}, Failed: {result.failed_count}"
+                    + (f"\n\nDetails:\n{error_details}" if error_details else "")
+                )
+
             self._load_next_pair()
         except FileOperationError as e:
             self.logger.error(f"Failed to discard images: {e}")
@@ -227,71 +242,57 @@ class ImageComparisonWidget(QWidget):
         """Update the display of both images."""
         if not self.current_pair:
             return
-        
-        # Calculate display dimensions
+
         available_width = (self.width() - 2 * self.config.padding) // 2
         available_height = self.height() - 2 * self.config.padding
-        
-        # Load and display each image, comparing resolutions
+
         images = [self.current_pair.image1_path, self.current_pair.image2_path]
-        dimensions = []
-        
-        # Get dimensions for both images first
+        image_data = []
+
         for image_path in images:
-            dimensions.append(self._get_image_dimensions(image_path))
-        
-        # Calculate pixel counts and determine which is higher
-        pixel_counts = [w * h for w, h in dimensions]
-        higher_res_index = 0 if pixel_counts[0] > pixel_counts[1] else 1 if pixel_counts[1] > pixel_counts[0] else -1
-        
-        # Display images and info with highlighting
+            try:
+                pixmap, width, height = self.image_processor.load_with_metadata(
+                    image_path, available_width, available_height
+                )
+                image_data.append((pixmap, width, height))
+            except ImageLoadError as e:
+                self.logger.error(f"Failed to display image {image_path}: {e}")
+                image_data.append((None, 0, 0))
+
+        pixel_counts = [width * height for _, width, height in image_data]
+        higher_res_index = (
+            0 if pixel_counts[0] > pixel_counts[1]
+            else 1 if pixel_counts[1] > pixel_counts[0]
+            else -1
+        )
+
         for i, image_path in enumerate(images):
-            self._update_single_image_display(image_path, self.image_labels[i], 
-                                            available_width, available_height)
-            is_higher_res = (i == higher_res_index and pixel_counts[0] != pixel_counts[1])
-            self._update_image_info(image_path, self.info_labels[i], is_higher_res)
-    
-    def _update_single_image_display(self, image_path: Path, label: QLabel, 
-                                   max_width: int, max_height: int):
-        """Update the display of a single image."""
-        try:
-            pixmap = self.image_processor.load_and_cache(
-                image_path, max_width, max_height
-            )
-            
-            label.setMaximumSize(max_width, max_height)
-            label.setPixmap(pixmap)
-            
-        except ImageLoadError as e:
-            self.logger.error(f"Failed to display image {image_path}: {e}")
-            # Show error placeholder
-            label.setText(f"Error loading\n{image_path.name}")
-    
-    def _get_image_dimensions(self, image_path: Path) -> Tuple[int, int]:
-        """Get the dimensions of an image file."""
-        try:
-            with Image.open(image_path) as img:
-                return img.size
-        except Exception as e:
-            self.logger.error(f"Failed to get dimensions for {image_path}: {e}")
-            return (0, 0)
-    
-    def _update_image_info(self, image_path: Path, info_label: QLabel, is_higher_res: bool = False):
-        """Update the info display for a single image."""
-        try:
-            width, height = self._get_image_dimensions(image_path)
-            info_text = f"{image_path.name}: {width} × {height}"
-            info_label.setText(info_text)
-            
-            # Apply green highlighting for higher resolution
-            if is_higher_res:
-                info_label.setStyleSheet("color: #00ff00; font-weight: bold;")
+            pixmap, width, height = image_data[i]
+
+            if pixmap is not None:
+                self.image_labels[i].setMaximumSize(available_width, available_height)
+                self.image_labels[i].setPixmap(pixmap)
             else:
-                info_label.setStyleSheet(f"color: {self.config.text_color};")
-                
-        except Exception as e:
-            self.logger.error(f"Failed to update info for {image_path}: {e}")
-            info_label.setText(f"{image_path.name}: Dimensions unknown")
+                self.image_labels[i].setText(f"Error loading\n{image_path.name}")
+
+            is_higher_res = (i == higher_res_index and pixel_counts[0] != pixel_counts[1])
+            self._update_image_info(image_path, self.info_labels[i], width, height, is_higher_res)
+
+    def _update_image_info(
+        self,
+        image_path: Path,
+        info_label: QLabel,
+        width: int,
+        height: int,
+        is_higher_res: bool = False,
+    ):
+        """Update the info display for a single image."""
+        info_text = f"{image_path.name}: {width} × {height}"
+        info_label.setText(info_text)
+
+        if is_higher_res:
+            info_label.setStyleSheet("color: #00ff00; font-weight: bold;")
+        else:
             info_label.setStyleSheet(f"color: {self.config.text_color};")
     
     def _handle_completion(self):
@@ -315,6 +316,10 @@ class ImageComparisonWidget(QWidget):
     def _show_info_dialog(self, message: str):
         """Show an info dialog to the user."""
         QMessageBox.information(self, "Info", message)
+
+    def _show_warning_dialog(self, message: str):
+        """Show a warning dialog to the user."""
+        QMessageBox.warning(self, "Warning", message)
     
     def _show_completion_dialog(self, message: str):
         """Show a completion dialog to the user."""
