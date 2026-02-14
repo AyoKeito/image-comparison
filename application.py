@@ -146,9 +146,13 @@ class Application:
             # Print instructions to console
             self._print_instructions()
 
-            # Run Qt event loop (normal completion is treated as success)
-            self.qt_app.exec_()
-            return self.EXIT_SUCCESS
+            # Run Qt event loop and normalize exit status to deterministic codes
+            qt_exit_code = self.qt_app.exec_()
+            if qt_exit_code == 0:
+                return self.EXIT_SUCCESS
+
+            self.logger.error(f"Qt event loop exited with code {qt_exit_code}")
+            return self.EXIT_UNEXPECTED_ERROR
 
         except UserCancelledError as e:
             self.logger.info(str(e))
@@ -191,7 +195,6 @@ class Application:
         """Clean up application resources."""
         try:
             if self.image_processor:
-                cache_info = self.image_processor.get_cache_info()
                 self.image_processor.clear_cache()
             
             if self.command_manager:

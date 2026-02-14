@@ -23,7 +23,7 @@ def main() -> int:
         exit_code = app.run()
         
         # Show completion statistics if application ran successfully
-        if exit_code == 0:
+        if exit_code == Application.EXIT_SUCCESS:
             stats = app.get_statistics()
             if stats.get("app_initialized", False):
                 remaining = stats.get("total_images", 0)
