@@ -88,7 +88,12 @@ class Application:
         return self._prompt_for_folder()
     
     def _prompt_for_folder(self) -> Path:
-        """Prompt user to select a valid folder."""
+        """Prompt user to select a valid folder.
+
+        Raises:
+            UserCancelledError: If the user cancels folder selection.
+            FolderValidationError: If a valid folder is not selected within max attempts.
+        """
         max_attempts = self.config.max_folder_validation_attempts
         attempts = 0
         
@@ -98,6 +103,7 @@ class Application:
             )
             
             if not folder_path:
+                # Bubble up cancellation so the entrypoint can decide process exit behavior.
                 raise UserCancelledError("Folder selection was cancelled by the user")
             
             try:
