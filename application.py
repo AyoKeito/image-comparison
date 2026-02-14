@@ -10,6 +10,7 @@ from commands import CommandManager
 from config import AppConfig
 from exceptions import FolderValidationError, ImageComparisonError
 from file_operations import FileOperationHandler
+from folder_validation import validate_image_folder
 from image_manager import ImageManager
 from image_processor import ImageProcessor
 from logger import logger
@@ -62,23 +63,14 @@ class Application:
     
     def _get_validated_folder(self) -> Path:
         """Get and validate the folder path, with user interaction if needed."""
-        folder_path = self.initial_folder
-        
-        # Try to validate the provided folder
-        if folder_path:
+        if self.initial_folder:
             try:
-                # Basic validation
-                if folder_path.exists() and folder_path.is_dir():
-                    image_files = self.file_handler.get_image_files(folder_path)
-                    if image_files:
-                        return folder_path
-                    else:
-                        self.logger.warning(f"No images found in folder: {folder_path}")
-                else:
-                    self.logger.warning(f"Invalid folder path: {folder_path}")
-            except Exception as e:
-                self.logger.error(f"Error validating folder {folder_path}: {e}")
-        
+                return validate_image_folder(self.initial_folder, self.file_handler)
+            except FolderValidationError as error:
+                self.logger.warning(str(error))
+            except Exception as error:
+                self.logger.error(f"Error validating folder {self.initial_folder}: {error}")
+
         # If we reach here, we need to prompt user for folder
         return self._prompt_for_folder()
     
@@ -86,33 +78,27 @@ class Application:
         """Prompt user to select a valid folder."""
         max_attempts = self.config.max_folder_validation_attempts
         attempts = 0
-        
+
         while attempts < max_attempts:
             folder_path = FolderSelectionDialog.select_folder(
                 title="Select Image Folder"
             )
-            
+
             if not folder_path:
                 # User cancelled
                 sys.exit(0)
-            
+
             try:
-                # Validate the selected folder
-                if folder_path.exists() and folder_path.is_dir():
-                    image_files = self.file_handler.get_image_files(folder_path)
-                    if image_files:
-                        return folder_path
-                    else:
-                        self._show_warning("No supported images found in the selected folder.")
-                else:
-                    self._show_warning("Selected path is not a valid folder.")
-                    
-            except Exception as e:
-                self.logger.error(f"Error validating selected folder: {e}")
-                self._show_error(f"Error accessing folder: {e}")
-            
+                return validate_image_folder(folder_path, self.file_handler)
+            except FolderValidationError as error:
+                self.logger.warning(str(error))
+                self._show_warning(str(error))
+            except Exception as error:
+                self.logger.error(f"Error validating selected folder: {error}")
+                self._show_error(f"Error accessing folder: {error}")
+
             attempts += 1
-        
+
         # If we reach here, user failed to select valid folder
         raise FolderValidationError(f"Failed to select valid folder after {max_attempts} attempts")
     
