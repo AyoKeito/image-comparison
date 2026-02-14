@@ -1,6 +1,7 @@
 """Command pattern implementation for undo functionality."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
@@ -14,7 +15,7 @@ class Command(ABC):
     """Abstract base class for all commands."""
     
     @abstractmethod
-    def execute(self):
+    def execute(self) -> "CommandExecutionResult":
         """Execute the command."""
         pass
     
@@ -27,6 +28,20 @@ class Command(ABC):
     def can_undo(self) -> bool:
         """Check if the command can be undone."""
         pass
+
+
+@dataclass
+class CommandExecutionResult:
+    """Structured result from command execution."""
+
+    succeeded_count: int = 0
+    failed_count: int = 0
+    errors: List[str] = field(default_factory=list)
+
+    @property
+    def has_success(self) -> bool:
+        """Whether at least one operation succeeded."""
+        return self.succeeded_count > 0
 
 
 class DiscardImageCommand(Command):
@@ -43,7 +58,7 @@ class DiscardImageCommand(Command):
         self.executed = False
         self.logger = logger
     
-    def execute(self):
+    def execute(self) -> CommandExecutionResult:
         """Move the image to the discarded folder."""
         try:
             self.target_path, self.original_source_path = self.file_handler.move_to_discarded(
@@ -54,10 +69,15 @@ class DiscardImageCommand(Command):
             self.image_processor.clear_cache_entry(self.image_path)
             
             self.executed = True
+            return CommandExecutionResult(succeeded_count=1)
             
         except FileOperationError as e:
             self.logger.error(f"Failed to discard image {self.image_path}: {e}")
-            raise
+            self.executed = False
+            return CommandExecutionResult(
+                failed_count=1,
+                errors=[f"{self.image_path.name}: {e}"],
+            )
     
     def undo(self):
         """Restore the image from the discarded folder."""
@@ -102,9 +122,10 @@ class DiscardMultipleImagesCommand(Command):
         self.discard_commands: List[DiscardImageCommand] = []
         self.logger = logger
     
-    def execute(self):
+    def execute(self) -> CommandExecutionResult:
         """Execute all discard commands."""
         self.discard_commands.clear()
+        result = CommandExecutionResult()
         
         for image_path in self.image_paths:
             command = DiscardImageCommand(
@@ -113,12 +134,21 @@ class DiscardMultipleImagesCommand(Command):
             )
             
             try:
-                command.execute()
-                self.discard_commands.append(command)
-            except FileOperationError as e:
-                self.logger.error(f"Failed to discard {image_path}: {e}")
-                # Continue with other images
-                continue
+                single_result = command.execute()
+                result.succeeded_count += single_result.succeeded_count
+                result.failed_count += single_result.failed_count
+                result.errors.extend(single_result.errors)
+
+                if single_result.has_success:
+                    self.discard_commands.append(command)
+                elif single_result.errors:
+                    self.logger.error(f"Failed to discard {image_path}: {single_result.errors[-1]}")
+            except Exception as e:
+                self.logger.error(f"Unexpected failure while discarding {image_path}: {e}")
+                result.failed_count += 1
+                result.errors.append(f"{image_path.name}: {e}")
+
+        return result
         
     
     def undo(self):
@@ -155,17 +185,20 @@ class CommandManager:
         self.history: List[Command] = []
         self.logger = logger
     
-    def execute_command(self, command: Command):
+    def execute_command(self, command: Command) -> CommandExecutionResult:
         """Execute a command and add it to history."""
         try:
-            command.execute()
+            result = command.execute()
             
-            # Add to history
-            self.history.append(command)
+            # Add to history only when there is state worth undoing
+            if command.can_undo() or result.has_success:
+                self.history.append(command)
             
             # Limit history size
             while len(self.history) > self.max_history_size:
                 self.history.pop(0)
+
+            return result
             
             
         except Exception as e:
