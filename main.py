@@ -1,12 +1,10 @@
 """Main entry point for the refactored Image Comparison application."""
 
 import sys
-from pathlib import Path
-
 from application import Application
 
 
-def main():
+def main() -> int:
     """Main entry point for the application."""
     print("Image Comparison v2.0 - Refactored Edition")
     print("=========================================")
@@ -34,17 +32,17 @@ def main():
             else:
                 print("\nApplication completed successfully")
         
-        sys.exit(exit_code)
+        return exit_code
         
     except KeyboardInterrupt:
         print("\nApplication interrupted by user")
-        sys.exit(130)  # Standard exit code for Ctrl+C
+        return Application.EXIT_USER_CANCELLED
         
     except Exception as e:
         print(f"\nCritical error: {e}")
         print("Check error.log for details")
-        sys.exit(1)
+        return Application.EXIT_UNEXPECTED_ERROR
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

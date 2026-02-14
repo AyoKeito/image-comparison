@@ -22,6 +22,11 @@ class FolderValidationError(ImageComparisonError):
     pass
 
 
+class UserCancelledError(ImageComparisonError):
+    """Raised when the user cancels an interactive workflow."""
+    pass
+
+
 class ImageLoadError(ImageComparisonError):
     """Raised when image loading fails."""
     

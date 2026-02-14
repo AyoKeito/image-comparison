@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from commands import CommandManager
 from config import AppConfig
-from exceptions import FolderValidationError, ImageComparisonError
+from exceptions import FolderValidationError, ImageComparisonError, UserCancelledError
 from file_operations import FileOperationHandler
 from image_manager import ImageManager
 from image_processor import ImageProcessor
@@ -18,6 +18,11 @@ from ui_widget import ImageComparisonWidget, FolderSelectionDialog
 
 class Application:
     """Main application class that wires together all components."""
+
+    EXIT_SUCCESS = 0
+    EXIT_USER_CANCELLED = 2
+    EXIT_VALIDATION_FAILURE = 3
+    EXIT_UNEXPECTED_ERROR = 4
     
     def __init__(self, config: AppConfig, initial_folder: Optional[Path] = None):
         self.config = config
@@ -93,8 +98,7 @@ class Application:
             )
             
             if not folder_path:
-                # User cancelled
-                sys.exit(0)
+                raise UserCancelledError("Folder selection was cancelled by the user")
             
             try:
                 # Validate the selected folder
@@ -129,38 +133,42 @@ class Application:
         QMessageBox.information(None, "Information", message)
     
     def run(self) -> int:
-        """Run the application and return exit code."""
+        """Run the application and return deterministic exit codes."""
         try:
             self.create_components()
-            
+
             # Show UI
             if self.config.window_fullscreen:
                 self.ui_widget.showMaximized()
             else:
                 self.ui_widget.show()
-            
-            
+
             # Print instructions to console
             self._print_instructions()
-            
-            # Run Qt event loop
-            return self.qt_app.exec_()
-            
+
+            # Run Qt event loop (normal completion is treated as success)
+            self.qt_app.exec_()
+            return self.EXIT_SUCCESS
+
+        except UserCancelledError as e:
+            self.logger.info(str(e))
+            return self.EXIT_USER_CANCELLED
+
         except FolderValidationError as e:
             self.logger.error(f"Folder validation failed: {e}")
             self._show_error(f"Folder validation failed: {e}")
-            return 1
-            
+            return self.EXIT_VALIDATION_FAILURE
+
         except ImageComparisonError as e:
             self.logger.error(f"Application error: {e}")
             self._show_error(f"Application error: {e}")
-            return 1
-            
+            return self.EXIT_UNEXPECTED_ERROR
+
         except Exception as e:
             self.logger.critical(f"Unexpected error: {e}", exc_info=True)
             self._show_error(f"Unexpected error: {e}")
-            return 1
-        
+            return self.EXIT_UNEXPECTED_ERROR
+
         finally:
             self._cleanup()
     
