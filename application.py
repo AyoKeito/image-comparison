@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from commands import CommandManager
 from config import AppConfig
-from exceptions import FolderValidationError, ImageComparisonError
+from exceptions import FolderValidationError, ImageComparisonError, UserCancelledError
 from file_operations import FileOperationHandler
 from folder_validation import validate_image_folder
 from image_manager import ImageManager
@@ -19,6 +19,11 @@ from ui_widget import ImageComparisonWidget, FolderSelectionDialog
 
 class Application:
     """Main application class that wires together all components."""
+
+    EXIT_SUCCESS = 0
+    EXIT_USER_CANCELLED = 2
+    EXIT_VALIDATION_FAILURE = 3
+    EXIT_UNEXPECTED_ERROR = 4
     
     def __init__(self, config: AppConfig, initial_folder: Optional[Path] = None):
         self.config = config
@@ -75,7 +80,12 @@ class Application:
         return self._prompt_for_folder()
     
     def _prompt_for_folder(self) -> Path:
-        """Prompt user to select a valid folder."""
+        """Prompt user to select a valid folder.
+
+        Raises:
+            UserCancelledError: If the user cancels folder selection.
+            FolderValidationError: If a valid folder is not selected within max attempts.
+        """
         max_attempts = self.config.max_folder_validation_attempts
         attempts = 0
 
@@ -85,6 +95,9 @@ class Application:
             )
 
             if not folder_path:
+                # Bubble up cancellation so the entrypoint can decide process exit behavior.
+                raise UserCancelledError("Folder selection was cancelled by the user")
+            
                 # User cancelled
                 sys.exit(0)
 
@@ -115,38 +128,46 @@ class Application:
         QMessageBox.information(None, "Information", message)
     
     def run(self) -> int:
-        """Run the application and return exit code."""
+        """Run the application and return deterministic exit codes."""
         try:
             self.create_components()
-            
+
             # Show UI
             if self.config.window_fullscreen:
                 self.ui_widget.showMaximized()
             else:
                 self.ui_widget.show()
-            
-            
+
             # Print instructions to console
             self._print_instructions()
-            
-            # Run Qt event loop
-            return self.qt_app.exec_()
-            
+
+            # Run Qt event loop and normalize exit status to deterministic codes
+            qt_exit_code = self.qt_app.exec_()
+            if qt_exit_code == 0:
+                return self.EXIT_SUCCESS
+
+            self.logger.error(f"Qt event loop exited with code {qt_exit_code}")
+            return self.EXIT_UNEXPECTED_ERROR
+
+        except UserCancelledError as e:
+            self.logger.info(str(e))
+            return self.EXIT_USER_CANCELLED
+
         except FolderValidationError as e:
             self.logger.error(f"Folder validation failed: {e}")
             self._show_error(f"Folder validation failed: {e}")
-            return 1
-            
+            return self.EXIT_VALIDATION_FAILURE
+
         except ImageComparisonError as e:
             self.logger.error(f"Application error: {e}")
             self._show_error(f"Application error: {e}")
-            return 1
-            
+            return self.EXIT_UNEXPECTED_ERROR
+
         except Exception as e:
             self.logger.critical(f"Unexpected error: {e}", exc_info=True)
             self._show_error(f"Unexpected error: {e}")
-            return 1
-        
+            return self.EXIT_UNEXPECTED_ERROR
+
         finally:
             self._cleanup()
     
@@ -169,7 +190,6 @@ class Application:
         """Clean up application resources."""
         try:
             if self.image_processor:
-                cache_info = self.image_processor.get_cache_info()
                 self.image_processor.clear_cache()
             
             if self.command_manager:
