@@ -46,7 +46,8 @@ class ImageComparisonWidget(QWidget):
         self._apply_theme()
         self._set_window_geometry()
         
-        # Load first pair
+        # Set initial title and load first pair
+        self.image_manager._notify_images_updated()
         self._load_next_pair()
     
     def _setup_ui(self):
@@ -155,6 +156,8 @@ class ImageComparisonWidget(QWidget):
         except Exception as e:
             self.logger.error(f"Error handling action {action}: {e}")
             self._show_error_dialog(f"Error: {e}")
+        finally:
+            self.image_manager._notify_images_updated()
     
     def _handle_discard(self, action: str):
         """Handle image discard actions."""
