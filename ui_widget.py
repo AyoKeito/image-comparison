@@ -216,7 +216,12 @@ class ImageComparisonWidget(QWidget):
     
     def _handle_undo(self):
         """Handle undo action."""
+        remaining_before = len(self.image_manager.get_remaining_images())
         if self.command_manager.undo_last_command():
+            remaining_after = len(self.image_manager.get_remaining_images())
+            restored = remaining_after - remaining_before
+            if restored > 0:
+                self.image_manager.discarded_count = max(0, self.image_manager.discarded_count - restored)
             # Refresh the current view
             self._load_next_pair()
         else:

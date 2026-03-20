@@ -236,8 +236,7 @@ class ImageManager:
         
         if to_discard:
             self.discarded_count += len(to_discard)
-            self._notify_images_updated()
-        
+
         return to_discard
     
     def get_statistics(self) -> dict:
